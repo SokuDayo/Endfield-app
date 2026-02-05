@@ -29,7 +29,7 @@ export function Collapsible({
   };
 
   return (
-    <ThemedView>
+    <ThemedView style={styles.container}>
       <TouchableOpacity
         style={styles.heading}
         onPress={toggle}
@@ -45,12 +45,19 @@ export function Collapsible({
         <ThemedText type="defaultSemiBold">{title}</ThemedText>
       </TouchableOpacity>
 
-      {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
+      {isOpen && (
+        <ThemedView style={[styles.content, { flex: 1 }]}>
+          {children}
+        </ThemedView>
+      )}
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   heading: {
     flexDirection: "row",
     alignItems: "center",

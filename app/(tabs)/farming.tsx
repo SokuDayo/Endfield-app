@@ -1,117 +1,195 @@
-import { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-import { Collapsible } from "@/components/ui/collapsible";
+import { areas, type Area } from "@/data/area";
 import { weapons, type Weapons } from "@/data/weapons";
 
-/* ───────── Layout constants ───────── */
+/* ───────── Constants ───────── */
 const windowWidth = Dimensions.get("window").width;
-const numColumns = 4;
-const cardMargin = 5;
-const horizontalPadding = 16;
+const NUM_COLUMNS = 4;
+const CARD_MARGIN = 5;
+const HORIZONTAL_PADDING = 16;
 
-const cardWidth =
-  (windowWidth - horizontalPadding * 2 - cardMargin * (numColumns * 2)) /
-  numColumns;
+const CARD_WIDTH =
+  (windowWidth - HORIZONTAL_PADDING * 2 - CARD_MARGIN * (NUM_COLUMNS * 2)) /
+  NUM_COLUMNS;
 
-/* ───────── Farming Component ───────── */
-const Farming = () => {
-  const [isGridOpen, setIsGridOpen] = useState(true);
-  const [selectedWeapon, setSelectedWeapon] = useState<Weapons | null>(null);
+const RARITY_OPTIONS: (3 | 4 | 5 | 6 | "all")[] = ["all", 6, 5, 4, 3];
 
-  const [rarityFilter, setRarityFilter] = useState<3 | 4 | 5 | 6 | "all">(
-    "all",
-  );
-  const [typeFilter, setTypeFilter] = useState<
-    "all" | "Greatsword" | "Polearm" | "Handcannon" | "Sword" | "Arts Unit"
-  >("all");
+const TYPE_OPTIONS = [
+  "all",
+  "Greatsword",
+  "Polearm",
+  "Handcannon",
+  "Sword",
+  "Arts Unit",
+] as const;
 
-  /* ───────── Filters ───────── */
-  const filteredWeapons = weapons.filter((weapon) => {
-    const rarityMatch =
-      rarityFilter === "all" || weapon.rarity === rarityFilter;
-    const typeMatch = typeFilter === "all" || weapon.type === typeFilter;
-    return rarityMatch && typeMatch;
-  });
+type WeaponTypeFilter = (typeof TYPE_OPTIONS)[number];
 
-  /* ───────── last row ───────── */
-  const data = [...filteredWeapons];
-  const remainder = data.length % numColumns;
+/* ───────── Helpers ───────── */
+function padGrid(data: Weapons[]): Weapons[] {
+  const padded = [...data];
+  const remainder = padded.length % NUM_COLUMNS;
+
   if (remainder !== 0) {
-    const emptyCount = numColumns - remainder;
-    for (let i = 0; i < emptyCount; i++) {
-      data.push({
-        id: `empty-${i}`,
-        name: "",
-        image: null,
-        rarity: 3,
-        tags: ["", "", ""],
-        type: "Sword",
-      } as Weapons);
+    const fillers = NUM_COLUMNS - remainder;
+    for (let i = 0; i < fillers; i++) {
+      padded.push({ id: `empty-${i}` } as Weapons);
     }
   }
 
-  /* ───────── Render weapon card ───────── */
-  const renderItem = ({ item }: { item: Weapons }) => {
-    if (item.id.startsWith("empty")) {
-      return <View style={[styles.card, styles.emptyCard]} />;
-    }
+  return padded;
+}
 
-    const isSelected = selectedWeapon?.id === item.id;
+/* ───────── Weapon Card ───────── */
+const WeaponCard = React.memo(function WeaponCard({
+  item,
+  isSelected,
+  onPress,
+}: {
+  item: Weapons;
+  isSelected?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.card, isSelected && styles.cardSelected]}
+      activeOpacity={0.85}
+      onPress={onPress}
+    >
+      {item.image && <Image source={item.image} style={styles.image} />}
+      <Text style={styles.name} numberOfLines={1}>
+        {item.name}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 
-    return (
-      <TouchableOpacity
-        style={[styles.card, isSelected && styles.cardSelected]}
-        activeOpacity={0.85}
-        onPress={() => {
-          setSelectedWeapon(item);
-          setIsGridOpen(false); // collapse grid
-        }}
-      >
-        <Image source={item.image} style={styles.image} />
-        <Text style={styles.name} numberOfLines={1}>
-          {item.name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+/* ───────── Screen ───────── */
+export default function Farming() {
+  const [selectedWeapon, setSelectedWeapon] = useState<Weapons | null>(null);
+  const [rarityFilter, setRarityFilter] = useState<3 | 4 | 5 | 6 | "all">(
+    "all",
+  );
+  const [typeFilter, setTypeFilter] = useState<WeaponTypeFilter>("all");
+
+  /* ───────── Filtered weapons ───────── */
+  const filteredWeapons = useMemo(() => {
+    return weapons.filter((weapon) => {
+      const rarityMatch =
+        rarityFilter === "all" || weapon.rarity === rarityFilter;
+      const typeMatch = typeFilter === "all" || weapon.type === typeFilter;
+
+      return rarityMatch && typeMatch;
+    });
+  }, [rarityFilter, typeFilter]);
+
+  const gridData = useMemo(() => padGrid(filteredWeapons), [filteredWeapons]);
 
   /* ───────── Related weapons ───────── */
-  const relatedWeapons = selectedWeapon
-    ? weapons.filter(
-        (w) =>
-          w.id !== selectedWeapon.id &&
-          w.tags.some((tag) => selectedWeapon.tags.includes(tag)),
-      )
-    : [];
+  const relatedWeapons = useMemo(() => {
+    if (!selectedWeapon) return [];
+    return weapons.filter(
+      (w) =>
+        w.id !== selectedWeapon.id &&
+        w.tags.some((tag) => selectedWeapon.tags.includes(tag)),
+    );
+  }, [selectedWeapon]);
 
-  /* ───────── UI ───────── */
+  /* ───────── Best area logic ───────── */
+  const bestArea = useMemo(() => {
+    if (!selectedWeapon) return null;
+
+    const [main, stat, skill] = selectedWeapon.tags;
+
+    let best: {
+      area: Area;
+      selectedTags: [string, string, string];
+      coverage: number;
+    } | null = null;
+
+    for (const area of areas) {
+      const [mainTags, statTags, skillTags] = area.tagSlots;
+
+      // Must match main attribute
+      if (!mainTags.includes(main)) continue;
+
+      const canUseStat = statTags.includes(stat);
+      const canUseSkill = skillTags.includes(skill);
+
+      // Must match stat OR skill
+      if (!canUseStat && !canUseSkill) continue;
+
+      // Count how many weapons this area can also drop
+      const coverage = weapons.filter((w) => {
+        const [wMain, wStat, wSkill] = w.tags;
+        return (
+          mainTags.includes(wMain) &&
+          (statTags.includes(wStat) || skillTags.includes(wSkill))
+        );
+      }).length;
+
+      if (!best || coverage > best.coverage) {
+        best = {
+          area,
+          selectedTags: [
+            main,
+            canUseStat ? stat : skill,
+            canUseStat ? skill : stat,
+          ],
+          coverage,
+        };
+      }
+    }
+
+    return best;
+  }, [selectedWeapon]);
+
+  /* ───────── Render grid item ───────── */
+  const renderItem = useCallback(
+    ({ item }: { item: Weapons }) => {
+      if (!item.name) {
+        return <View style={[styles.card, styles.emptyCard]} />;
+      }
+
+      return (
+        <WeaponCard
+          item={item}
+          isSelected={selectedWeapon?.id === item.id}
+          onPress={() => setSelectedWeapon(item)}
+        />
+      );
+    },
+    [selectedWeapon],
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Weapon Farming</Text>
       <Text style={styles.desc}>
-        Select the weapon you want to farm essences for.
+        Select a weapon to see optimal farming areas.
       </Text>
 
       {/* Filters */}
       <View style={styles.filterContainer}>
         <View style={styles.filterRow}>
-          {["all", 6, 5, 4, 3].map((r) => (
+          {RARITY_OPTIONS.map((r) => (
             <TouchableOpacity
               key={r.toString()}
               style={[
                 styles.filterButton,
                 rarityFilter === r && styles.filterButtonActive,
               ]}
-              onPress={() => setRarityFilter(r as any)}
+              onPress={() => setRarityFilter(r)}
             >
               <Text style={styles.filterText}>
                 {r === "all" ? "All" : `★${r}`}
@@ -121,21 +199,14 @@ const Farming = () => {
         </View>
 
         <View style={styles.filterRow}>
-          {[
-            "all",
-            "Greatsword",
-            "Polearm",
-            "Handcannon",
-            "Sword",
-            "Arts Unit",
-          ].map((t) => (
+          {TYPE_OPTIONS.map((t) => (
             <TouchableOpacity
               key={t}
               style={[
                 styles.filterButton,
                 typeFilter === t && styles.filterButtonActive,
               ]}
-              onPress={() => setTypeFilter(t as any)}
+              onPress={() => setTypeFilter(t)}
             >
               <Text style={styles.filterText}>{t === "all" ? "All" : t}</Text>
             </TouchableOpacity>
@@ -143,46 +214,36 @@ const Farming = () => {
         </View>
       </View>
 
-      {/* Weapon Grid in Collapsible */}
-      <Collapsible
-        title="Weapons"
-        isOpen={isGridOpen}
-        onToggle={() => {
-          if (!isGridOpen) setSelectedWeapon(null);
-          setIsGridOpen((v) => !v);
+      {/* Grid */}
+      <FlatList
+        data={gridData}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={NUM_COLUMNS}
+        contentContainerStyle={{
+          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingBottom: selectedWeapon ? 0 : 40,
+          alignItems: "center",
         }}
-      >
-        <FlatList
-          data={data}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          numColumns={numColumns}
-          contentContainerStyle={{
-            paddingHorizontal: horizontalPadding,
-            paddingBottom: 12,
-            alignItems: "center",
-          }}
-          columnWrapperStyle={{
-            justifyContent: "center",
-            marginBottom: cardMargin,
-          }}
-        />
-      </Collapsible>
+        columnWrapperStyle={{
+          justifyContent: "center",
+          marginBottom: CARD_MARGIN,
+        }}
+      />
 
-      {/* Selected Weapon Container */}
-      {selectedWeapon && !isGridOpen && (
+      {/* Selected weapon panel */}
+      {selectedWeapon && (
         <View style={styles.selectedContainer}>
-          {/* Selected Weapon */}
-          <View
-            style={[styles.card, styles.cardSelected, { alignSelf: "center" }]}
+          <TouchableOpacity
+            onPress={() => setSelectedWeapon(null)}
+            style={styles.clearButton}
           >
-            <Image source={selectedWeapon.image} style={styles.image} />
-            <Text style={styles.name} numberOfLines={1}>
-              {selectedWeapon.name}
-            </Text>
-          </View>
+            <Text style={styles.clearButtonText}>Change weapon</Text>
+          </TouchableOpacity>
 
-          {/* Tags */}
+          <WeaponCard item={selectedWeapon} isSelected onPress={() => {}} />
+
+          {/* Weapon tags */}
           <View style={styles.tagRow}>
             {selectedWeapon.tags.map((tag) => (
               <Text key={tag} style={styles.tag}>
@@ -191,9 +252,46 @@ const Farming = () => {
             ))}
           </View>
 
-          {/* Related Weapons */}
+          {/* Best area */}
+          {bestArea && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.relatedTitle}>Best Farming Area</Text>
+
+              <Text
+                style={{
+                  color: "#ffcc00",
+                  fontWeight: "bold",
+                }}
+              >
+                {bestArea.area.name}
+              </Text>
+
+              <Text style={{ color: "#ccc", marginTop: 6 }}>
+                Select these tags:
+              </Text>
+
+              <View style={styles.tagRow}>
+                {bestArea.selectedTags.map((tag) => (
+                  <Text key={tag} style={styles.tag}>
+                    {tag}
+                  </Text>
+                ))}
+              </View>
+
+              <Text
+                style={{
+                  color: "#888",
+                  fontSize: 12,
+                }}
+              >
+                Covers {bestArea.coverage} weapons total
+              </Text>
+            </View>
+          )}
+
+          {/* Related weapons */}
           {relatedWeapons.length > 0 && (
-            <>
+            <View style={{ marginTop: 12 }}>
               <Text style={styles.relatedTitle}>Related Weapons</Text>
               <FlatList
                 data={relatedWeapons}
@@ -201,23 +299,19 @@ const Farming = () => {
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <View style={[styles.card, styles.relatedCard]}>
-                    <Image source={item.image} style={styles.image} />
-                    <Text style={styles.name} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                  </View>
+                  <WeaponCard
+                    item={item}
+                    onPress={() => setSelectedWeapon(item)}
+                  />
                 )}
               />
-            </>
+            </View>
           )}
         </View>
       )}
     </View>
   );
-};
-
-export default Farming;
+}
 
 /* ───────── Styles ───────── */
 const styles = StyleSheet.create({
@@ -234,7 +328,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   desc: {
-    color: "#fff",
+    color: "#ccc",
     textAlign: "center",
     marginBottom: 16,
   },
@@ -263,8 +357,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   card: {
-    width: cardWidth,
-    margin: cardMargin,
+    width: CARD_WIDTH,
+    margin: CARD_MARGIN,
     padding: 12,
     alignItems: "center",
     backgroundColor: "#1a1a1a",
@@ -277,9 +371,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ffcc00",
   },
-  relatedCard: {
-    marginRight: 8,
-  },
   image: {
     width: 80,
     height: 80,
@@ -290,25 +381,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     textAlign: "center",
-    width: "100%",
   },
   selectedContainer: {
-    padding: 16,
     borderTopWidth: 1,
     borderColor: "#333",
+    padding: 16,
     backgroundColor: "#111",
-    width: "100%",
-  },
-  selectedTitle: {
-    color: "#ffcc00",
-    fontWeight: "bold",
-    marginBottom: 8,
   },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginBottom: 12,
+    marginVertical: 12,
   },
   tag: {
     paddingHorizontal: 8,
@@ -322,5 +406,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     marginBottom: 6,
+  },
+  clearButton: {
+    alignSelf: "flex-end",
+    marginBottom: 8,
+  },
+  clearButtonText: {
+    color: "#ffcc00",
+    fontWeight: "bold",
   },
 });
