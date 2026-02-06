@@ -230,7 +230,7 @@ export const weapons: Weapons[] = [
     image: require("@/assets/images/wpn_claym_0012.png"),
     rarity: 5,
     type: "Greatsword",
-    tags: ["Strengh", "HP", "Medicant"],
+    tags: ["Strength", "HP", "Medicant"],
   },
   {
     id: "29",
