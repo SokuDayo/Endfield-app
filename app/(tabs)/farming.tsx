@@ -14,6 +14,7 @@ import { weapons, type Weapons } from "@/data/weapons";
 import {
   getBestAreaAndAlternatives,
   type BestAreaResult,
+  type LockedTagResult,
 } from "@/features/areaLogic";
 
 const windowWidth = Dimensions.get("window").width;
@@ -99,6 +100,23 @@ export default function Farming() {
     () => (selectedWeapon ? getBestAreaAndAlternatives(selectedWeapon) : null),
     [selectedWeapon],
   );
+
+  // Sort locked tags by number of perfect 3/3 weapons
+  const sortedLockedTags = useMemo(() => {
+    if (!bestArea || !selectedWeapon) return [];
+    return [...bestArea.lockedTags].sort((a, b) => {
+      const perfectCount = (lt: LockedTagResult) =>
+        Object.values(lt.weaponsByMain)
+          .flat()
+          .filter((w) => {
+            const [, wStat, wSkill] = w.tags;
+            const [, selStat, selSkill] = selectedWeapon.tags;
+            return wStat === selStat && wSkill === selSkill;
+          }).length;
+
+      return perfectCount(b) - perfectCount(a);
+    });
+  }, [bestArea, selectedWeapon]);
 
   const renderItem = useCallback(
     ({ item }: { item: Weapons }) => {
@@ -208,9 +226,11 @@ export default function Farming() {
             </Text>
 
             {/* Locked Tag Sections */}
-            {bestArea.lockedTags.map((lt) => (
-              <View key={lt.tag} style={{ marginTop: 12 }}>
-                <Text style={{ color: "#ccc" }}>Lock Secondary: {lt.tag}</Text>
+            {sortedLockedTags.map((lt) => (
+              <View key={lt.lockedTag} style={{ marginTop: 12 }}>
+                <Text style={{ color: "#ccc" }}>
+                  Lock Secondary: {lt.lockedTag}
+                </Text>
                 {Object.entries(lt.weaponsByMain).map(([main, weapons]) => (
                   <View key={main} style={{ marginTop: 6 }}>
                     <Text style={{ color: "#ccc" }}>{main}</Text>

@@ -1,90 +1,109 @@
 import { areas, type Area } from "@/data/area";
 import { weapons, type Weapons } from "@/data/weapons";
 
-export type BestAreaResult = {
-  area: Area;
-  lockedTags: {
-    tag: string; // locked secondary tag
-    weaponsByMain: Record<string, Weapons[]>; // weapons grouped by main tag
-  }[];
+export type LockedTagResult = {
+  lockedTag: string;
+  perfectCount: number;
+  weaponsByMain: Record<string, Weapons[]>;
 };
 
-/**
- * Computes the best farming area and alternative weapons based on locked secondary tags.
- */
+export type BestAreaResult = {
+  area: Area;
+  lockedTags: LockedTagResult[];
+};
+
 export function getBestAreaAndAlternatives(
   selectedWeapon: Weapons,
 ): BestAreaResult | null {
   const [mainTag, statTag, skillTag] = selectedWeapon.tags;
 
-  let bestArea: BestAreaResult | null = null;
+  let bestResult: BestAreaResult | null = null;
+  let bestPerfectTotal = -1;
 
   for (const area of areas) {
-    const [mainTags] = area.tagSlots;
+    const [mainTags, statTags, skillTags] = area.tagSlots;
 
-    // Only consider areas that include the weapon's main tag
-    if (!mainTags.includes(mainTag)) continue;
+    // ✅ Area must support ALL 3 tags
+    if (
+      !mainTags.includes(mainTag) ||
+      (!statTags.includes(statTag) && !skillTags.includes(statTag)) ||
+      (!skillTags.includes(skillTag) && !statTags.includes(skillTag))
+    ) {
+      continue;
+    }
 
-    const lockedOptions: string[] = [statTag, skillTag]; // user can lock either stat or skill
+    const lockCandidates = [statTag, skillTag];
 
-    const lockedTagsData = lockedOptions.map((lockedTag) => {
-      const weaponsByMain: Record<string, Weapons[]> = {};
+    const lockedTagResults: LockedTagResult[] = lockCandidates.map(
+      (lockedTag) => {
+        const weaponsByMain: Record<string, Weapons[]> = {};
+        let perfectCount = 0;
 
-      for (const mainChoice of mainTags) {
-        // Filter weapons:
-        // - Main tag must match mainChoice
-        // - Must include lockedTag (secondary tag)
-        // - Must have all 3 relevant tags: main + locked + other (either stat or skill)
-        const filtered = weapons.filter((w) => {
-          const [wMain, wStat, wSkill] = w.tags;
+        for (const mainChoice of mainTags) {
+          const matches = weapons
+            .filter((w) => {
+              if (w.id === selectedWeapon.id) return false;
 
-          const hasMain = wMain === mainChoice;
-          const hasLocked = wStat === lockedTag || wSkill === lockedTag;
+              const [wMain, wStat, wSkill] = w.tags;
 
-          // include only if weapon has 3 tags: main + stat + skill
-          const tagsSet = new Set([wMain, wStat, wSkill]);
-          const requiredTags = new Set([mainChoice, lockedTag]);
+              if (wMain !== mainChoice) return false;
 
-          return (
-            hasMain &&
-            hasLocked &&
-            requiredTags.size === 2 &&
-            tagsSet.has(mainChoice) &&
-            tagsSet.has(lockedTag)
-          );
-        });
+              // 🔒 locked tag must match
+              const hasLocked = wStat === lockedTag || wSkill === lockedTag;
+              if (!hasLocked) return false;
 
-        if (filtered.length > 0) {
-          weaponsByMain[mainChoice] = filtered;
+              // ✅ other tag must be farmable in area
+              const otherTag = wStat === lockedTag ? wSkill : wStat;
+
+              return (
+                statTags.includes(otherTag) || skillTags.includes(otherTag)
+              );
+            })
+            .map((w) => {
+              const [, wStat, wSkill] = w.tags;
+              const isPerfect = wStat === statTag && wSkill === skillTag;
+
+              if (isPerfect) perfectCount++;
+
+              return {
+                weapon: w,
+                score: isPerfect ? 2 : 1,
+              };
+            })
+            .sort((a, b) => b.score - a.score)
+            .map((e) => e.weapon);
+
+          if (matches.length > 0) {
+            weaponsByMain[mainChoice] = matches;
+          }
         }
-      }
 
-      return { tag: lockedTag, weaponsByMain };
-    });
+        return {
+          lockedTag,
+          perfectCount,
+          weaponsByMain,
+        };
+      },
+    );
 
-    // Count total coverage to pick best area
-    const totalCoverage = lockedTagsData.reduce(
-      (acc, lt) =>
-        acc + Object.values(lt.weaponsByMain).reduce((a, b) => a + b.length, 0),
+    const areaPerfectTotal = lockedTagResults.reduce(
+      (sum, lt) => sum + lt.perfectCount,
       0,
     );
 
-    if (
-      !bestArea ||
-      totalCoverage >
-        bestArea.lockedTags.reduce(
-          (acc, lt) =>
-            acc +
-            Object.values(lt.weaponsByMain).reduce((a, b) => a + b.length, 0),
-          0,
-        )
-    ) {
-      bestArea = {
+    if (areaPerfectTotal > bestPerfectTotal) {
+      bestPerfectTotal = areaPerfectTotal;
+
+      bestResult = {
         area,
-        lockedTags: lockedTagsData,
+        // ⭐ MOST IMPORTANT PART ⭐
+        // Best lock first in the UI
+        lockedTags: lockedTagResults.sort(
+          (a, b) => b.perfectCount - a.perfectCount,
+        ),
       };
     }
   }
 
-  return bestArea;
+  return bestResult;
 }
