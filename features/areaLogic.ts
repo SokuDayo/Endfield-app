@@ -15,89 +15,77 @@ export type BestAreaResult = {
 export function getBestAreaAndAlternatives(
   selectedWeapon: Weapons,
 ): BestAreaResult | null {
-  const [mainTag, statTag, skillTag] = selectedWeapon.tags;
+  const [selectedMain, selectedStat, selectedSkill] = selectedWeapon.tags;
 
   let bestResult: BestAreaResult | null = null;
-  let bestPerfectTotal = -1;
+  let highestPerfectTotal = -1;
 
   for (const area of areas) {
-    const [mainTags, statTags, skillTags] = area.tagSlots;
+    const [areaMainTags, areaStatTags, areaSkillTags] = area.tagSlots;
 
-    // ✅ Area must support ALL 3 tags
+    // Area must support ALL tags of selected weapon
     if (
-      !mainTags.includes(mainTag) ||
-      (!statTags.includes(statTag) && !skillTags.includes(statTag)) ||
-      (!skillTags.includes(skillTag) && !statTags.includes(skillTag))
+      !areaMainTags.includes(selectedMain) ||
+      (!areaStatTags.includes(selectedStat) &&
+        !areaSkillTags.includes(selectedStat)) ||
+      (!areaStatTags.includes(selectedSkill) &&
+        !areaSkillTags.includes(selectedSkill))
     ) {
       continue;
     }
 
-    const lockCandidates = [statTag, skillTag];
+    // Locked secondary candidates: only the secondary tags
+    const lockCandidates = [selectedStat, selectedSkill];
 
     const lockedTagResults: LockedTagResult[] = lockCandidates.map(
       (lockedTag) => {
         const weaponsByMain: Record<string, Weapons[]> = {};
         let perfectCount = 0;
 
-        for (const mainChoice of mainTags) {
-          const matches = weapons
-            .filter((w) => {
-              if (w.id === selectedWeapon.id) return false;
+        for (const mainChoice of areaMainTags) {
+          const perfectWeapons = weapons.filter((w) => {
+            if (w.id === selectedWeapon.id) return false; // exclude selected weapon
+            const [wMain, wStat, wSkill] = w.tags;
+            const secondaries = [wStat, wSkill];
 
-              const [wMain, wStat, wSkill] = w.tags;
+            // Must match main tag
+            if (wMain !== mainChoice) return false;
 
-              if (wMain !== mainChoice) return false;
+            // Must have the locked secondary tag
+            if (!secondaries.includes(lockedTag)) return false;
 
-              // 🔒 locked tag must match
-              const hasLocked = wStat === lockedTag || wSkill === lockedTag;
-              if (!hasLocked) return false;
+            // Other secondary must be farmable in this area
+            const otherSecondary = secondaries.find((t) => t !== lockedTag);
+            if (!otherSecondary) return false;
 
-              // ✅ other tag must be farmable in area
-              const otherTag = wStat === lockedTag ? wSkill : wStat;
+            return (
+              areaStatTags.includes(otherSecondary) ||
+              areaSkillTags.includes(otherSecondary)
+            );
+          });
 
-              return (
-                statTags.includes(otherTag) || skillTags.includes(otherTag)
-              );
-            })
-            .map((w) => {
-              const [, wStat, wSkill] = w.tags;
-              const isPerfect = wStat === statTag && wSkill === skillTag;
-
-              if (isPerfect) perfectCount++;
-
-              return {
-                weapon: w,
-                score: isPerfect ? 2 : 1,
-              };
-            })
-            .sort((a, b) => b.score - a.score)
-            .map((e) => e.weapon);
-
-          if (matches.length > 0) {
-            weaponsByMain[mainChoice] = matches;
+          if (perfectWeapons.length > 0) {
+            weaponsByMain[mainChoice] = perfectWeapons;
+            perfectCount += perfectWeapons.length;
           }
         }
 
-        return {
-          lockedTag,
-          perfectCount,
-          weaponsByMain,
-        };
+        return { lockedTag, perfectCount, weaponsByMain };
       },
     );
 
+    // Total perfect weapons for this area
     const areaPerfectTotal = lockedTagResults.reduce(
       (sum, lt) => sum + lt.perfectCount,
       0,
     );
 
-    if (areaPerfectTotal > bestPerfectTotal) {
-      bestPerfectTotal = areaPerfectTotal;
-
+    // Keep best area
+    if (areaPerfectTotal > highestPerfectTotal) {
+      highestPerfectTotal = areaPerfectTotal;
       bestResult = {
         area,
-        // ⭐ MOST IMPORTANT PART ⭐
-        // Best lock first in the UI
+        // Sort locked tags by most perfect weapons first
         lockedTags: lockedTagResults.sort(
           (a, b) => b.perfectCount - a.perfectCount,
         ),

@@ -53,6 +53,23 @@ function padGrid(data: Weapons[]): Weapons[] {
 }
 
 // Weapon card
+// ───── Helper ─────
+function getRarityColor(rarity?: number) {
+  switch (rarity) {
+    case 6:
+      return "#ff4d4d36"; // red
+    case 5:
+      return "#ffcc004d"; // yellow
+    case 4:
+      return "#9933ff57"; // purple
+    case 3:
+      return "#3399ff41"; // blue
+    default:
+      return "#1a1a1a"; // default dark
+  }
+}
+
+// Weapon card
 const WeaponCard = React.memo(function WeaponCard({
   item,
   isSelected,
@@ -62,9 +79,15 @@ const WeaponCard = React.memo(function WeaponCard({
   isSelected?: boolean;
   onPress: () => void;
 }) {
+  const bgColor = getRarityColor(item.rarity);
+
   return (
     <TouchableOpacity
-      style={[styles.card, isSelected && styles.cardSelected]}
+      style={[
+        styles.card,
+        { backgroundColor: bgColor }, // set rarity background
+        isSelected && styles.cardSelected,
+      ]}
       activeOpacity={0.85}
       onPress={onPress}
     >
@@ -100,23 +123,6 @@ export default function Farming() {
     () => (selectedWeapon ? getBestAreaAndAlternatives(selectedWeapon) : null),
     [selectedWeapon],
   );
-
-  // Sort locked tags by number of perfect 3/3 weapons
-  const sortedLockedTags = useMemo(() => {
-    if (!bestArea || !selectedWeapon) return [];
-    return [...bestArea.lockedTags].sort((a, b) => {
-      const perfectCount = (lt: LockedTagResult) =>
-        Object.values(lt.weaponsByMain)
-          .flat()
-          .filter((w) => {
-            const [, wStat, wSkill] = w.tags;
-            const [, selStat, selSkill] = selectedWeapon.tags;
-            return wStat === selStat && wSkill === selSkill;
-          }).length;
-
-      return perfectCount(b) - perfectCount(a);
-    });
-  }, [bestArea, selectedWeapon]);
 
   const renderItem = useCallback(
     ({ item }: { item: Weapons }) => {
@@ -194,12 +200,10 @@ export default function Farming() {
       {selectedWeapon && bestArea && (
         <View style={styles.selectedOverlay}>
           <ScrollView
-            contentContainerStyle={{
-              padding: 16,
-              paddingBottom: 60,
-              paddingTop: 20,
-            }}
+            contentContainerStyle={styles.selectedScrollContainer}
+            showsVerticalScrollIndicator={false}
           >
+            {/* Close button */}
             <TouchableOpacity
               onPress={() => setSelectedWeapon(null)}
               style={styles.clearButton}
@@ -207,49 +211,61 @@ export default function Farming() {
               <Text style={styles.clearButtonText}>Close</Text>
             </TouchableOpacity>
 
+            {/* Selected Weapon Card */}
             <WeaponCard item={selectedWeapon} isSelected onPress={() => {}} />
 
+            {/* Selected Weapon Tags */}
             <View style={styles.tagRow}>
               {selectedWeapon.tags.map((tag) => (
-                <Text key={tag} style={styles.tag}>
-                  {tag}
-                </Text>
+                <View key={tag} style={styles.tagContainer}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
               ))}
             </View>
 
-            {/* Best Area Name */}
-            <Text style={[styles.relatedTitle, { marginTop: 12 }]}>
-              Best Farming Area
-            </Text>
-            <Text style={{ color: "#ffcc00", fontWeight: "bold" }}>
-              {bestArea.area.name}
-            </Text>
+            {/* Best Area */}
+            <Text style={styles.relatedTitle}>Best Farming Area</Text>
+            <Text style={styles.bestAreaName}>{bestArea.area.name}</Text>
 
             {/* Locked Tag Sections */}
-            {sortedLockedTags.map((lt) => (
-              <View key={lt.lockedTag} style={{ marginTop: 12 }}>
-                <Text style={{ color: "#ccc" }}>
-                  Lock Secondary: {lt.lockedTag}
-                </Text>
-                {Object.entries(lt.weaponsByMain).map(([main, weapons]) => (
-                  <View key={main} style={{ marginTop: 6 }}>
-                    <Text style={{ color: "#ccc" }}>{main}</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      {weapons.map((w) => (
-                        <WeaponCard
-                          key={w.id}
-                          item={w}
-                          onPress={() => setSelectedWeapon(w)}
-                        />
-                      ))}
-                    </ScrollView>
-                  </View>
-                ))}
-              </View>
-            ))}
+            {bestArea.lockedTags.map((lt: LockedTagResult) => {
+              // Sort main tags so selected main comes first
+              const sortedMainTags = Object.keys(lt.weaponsByMain).sort(
+                (a, b) =>
+                  a === selectedWeapon.tags[0]
+                    ? -1
+                    : b === selectedWeapon.tags[0]
+                      ? 1
+                      : 0,
+              );
+
+              return (
+                <View key={lt.lockedTag} style={styles.lockedSection}>
+                  <Text style={styles.lockedTitle}>
+                    Lock Secondary: {lt.lockedTag}
+                  </Text>
+
+                  {sortedMainTags.map((main) => (
+                    <View key={main} style={styles.mainTagSection}>
+                      <Text style={styles.mainTag}>{main}</Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.horizontalScroll}
+                      >
+                        {lt.weaponsByMain[main].map((w) => (
+                          <WeaponCard
+                            key={w.id}
+                            item={w}
+                            onPress={() => setSelectedWeapon(w)}
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ))}
+                </View>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -279,21 +295,42 @@ const styles = StyleSheet.create({
   cardSelected: { borderWidth: 2, borderColor: "#ffcc00" },
   emptyCard: { backgroundColor: "transparent" },
   image: { width: 80, height: 80, resizeMode: "contain", marginBottom: 6 },
-  name: { color: "#fff", fontSize: 14, textAlign: "center" },
+  name: { color: "#fff", fontSize: 12, textAlign: "center" },
+  selectedScrollContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 80,
+  },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginVertical: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
-  tag: {
+  tagContainer: {
+    backgroundColor: "#333",
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: "#333",
+    marginRight: 6,
+    marginBottom: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 24,
+  },
+  tagText: {
     color: "#fff",
     fontSize: 12,
+    lineHeight: 16,
+    textAlign: "center",
   },
+  relatedTitle: { color: "#fff", fontWeight: "bold", marginTop: 12 },
+  bestAreaName: { color: "#ffcc00", fontWeight: "bold", marginBottom: 12 },
+  lockedSection: { marginTop: 12 },
+  lockedTitle: { color: "#ffcc00", fontWeight: "bold", marginBottom: 6 },
+  mainTagSection: { marginTop: 8 },
+  mainTag: { color: "#ccc", marginBottom: 6 },
+  horizontalScroll: { gap: 2 },
   filterContainer: { gap: 6, marginBottom: 12 },
   filterRow: {
     flexDirection: "row",
@@ -319,7 +356,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     zIndex: 10,
   },
-  relatedTitle: { color: "#fff", fontWeight: "bold", marginBottom: 6 },
-  clearButton: { alignSelf: "flex-end", marginTop: 20, marginBottom: 8 },
+  clearButton: {
+    alignSelf: "flex-end",
+    marginTop: 20,
+    marginBottom: 8,
+  },
   clearButtonText: { color: "#ffcc00", fontWeight: "bold" },
 });

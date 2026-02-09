@@ -1,7 +1,7 @@
 //import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from "react-native";
 
-const essence = () => {
+const Essence = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>test</Text>
@@ -22,4 +22,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default essence;
+export default Essence;
