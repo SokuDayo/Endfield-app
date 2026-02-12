@@ -1,0 +1,15 @@
+{
+  "weaponFarming": "武器の採取",
+  "essenceFarming": "基質チェッカー",
+  "selectWeapon": "最適な採取場所を表示する武器を選択してください。",
+  "selectTags": "一致する武器を見つけるためにタグを選択",
+  "any": "すべて",
+  "rarity": "レアリティ",
+  "type": "タイプ",
+  "close": "閉じる",
+  "none": "なし",
+  "bestFarmingArea": "最適な採取エリア",
+  "lockSecondary": "サブを固定",
+  "mainTag": "メインタグ",
+  "perfectMatch": "完全一致"
+}

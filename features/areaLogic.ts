@@ -2,9 +2,10 @@ import { areas, type Area } from "@/data/area";
 import { weapons, type Weapons } from "@/data/weapons";
 
 export type LockedTagResult = {
-  lockedTag: string;
+  lockedTag: string; // EN
+  lockedTagJP: string; // JP
   perfectCount: number;
-  weaponsByMain: Record<string, Weapons[]>;
+  weaponsByMain: Record<string, { en: string; jp: string; weapons: Weapons[] }>;
 };
 
 export type BestAreaResult = {
@@ -22,6 +23,7 @@ export function getBestAreaAndAlternatives(
 
   for (const area of areas) {
     const [areaMainTags, areaStatTags, areaSkillTags] = area.tagSlots;
+    const [areaMainTagsJP, areaStatTagsJP, areaSkillTagsJP] = area.tagSlotsJP;
 
     // Area must support ALL tags of selected weapon
     if (
@@ -30,31 +32,38 @@ export function getBestAreaAndAlternatives(
         !areaSkillTags.includes(selectedStat)) ||
       (!areaStatTags.includes(selectedSkill) &&
         !areaSkillTags.includes(selectedSkill))
-    ) {
+    )
       continue;
-    }
 
-    // Locked secondary candidates: only the secondary tags
     const lockCandidates = [selectedStat, selectedSkill];
 
     const lockedTagResults: LockedTagResult[] = lockCandidates.map(
       (lockedTag) => {
-        const weaponsByMain: Record<string, Weapons[]> = {};
-        let perfectCount = 0;
+        // Find JP equivalent
+        let lockedTagJP = areaStatTags.includes(lockedTag)
+          ? areaStatTagsJP[areaStatTags.indexOf(lockedTag)]
+          : areaSkillTags.includes(lockedTag)
+            ? areaSkillTagsJP[areaSkillTags.indexOf(lockedTag)]
+            : lockedTag;
 
-        for (const mainChoice of areaMainTags) {
+        let perfectCount = 0;
+        const weaponsByMain: Record<
+          string,
+          { en: string; jp: string; weapons: Weapons[] }
+        > = {};
+
+        for (let i = 0; i < areaMainTags.length; i++) {
+          const mainChoice = areaMainTags[i];
+          const mainChoiceJP = areaMainTagsJP[i];
+
           const perfectWeapons = weapons.filter((w) => {
-            if (w.id === selectedWeapon.id) return false; // exclude selected weapon
+            if (w.id === selectedWeapon.id) return false;
             const [wMain, wStat, wSkill] = w.tags;
             const secondaries = [wStat, wSkill];
 
-            // Must match main tag
             if (wMain !== mainChoice) return false;
-
-            // Must have the locked secondary tag
             if (!secondaries.includes(lockedTag)) return false;
 
-            // Other secondary must be farmable in this area
             const otherSecondary = secondaries.find((t) => t !== lockedTag);
             if (!otherSecondary) return false;
 
@@ -65,27 +74,29 @@ export function getBestAreaAndAlternatives(
           });
 
           if (perfectWeapons.length > 0) {
-            weaponsByMain[mainChoice] = perfectWeapons;
+            weaponsByMain[mainChoice] = {
+              en: mainChoice,
+              jp: mainChoiceJP,
+              weapons: perfectWeapons,
+            };
             perfectCount += perfectWeapons.length;
           }
         }
 
-        return { lockedTag, perfectCount, weaponsByMain };
+        return { lockedTag, lockedTagJP, perfectCount, weaponsByMain };
       },
     );
 
-    // Total perfect weapons for this area
     const areaPerfectTotal = lockedTagResults.reduce(
       (sum, lt) => sum + lt.perfectCount,
       0,
     );
 
-    // Keep best area
     if (areaPerfectTotal > highestPerfectTotal) {
       highestPerfectTotal = areaPerfectTotal;
+
       bestResult = {
         area,
-        // Sort locked tags by most perfect weapons first
         lockedTags: lockedTagResults.sort(
           (a, b) => b.perfectCount - a.perfectCount,
         ),

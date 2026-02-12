@@ -1,13 +1,16 @@
 export type Area = {
   id: string;
   name: string;
+  nameJP: string;
   tagSlots: [string[], string[], string[]];
+  tagSlotsJP: [string[], string[], string[]];
 };
 
 export const areas: Area[] = [
   {
     id: "area1",
     name: "Severe Energy Alluvium: Originium Science Park",
+    nameJP: "四号谷地:源石研究パーク",
     tagSlots: [
       ["Agility", "Strength", "Will", "Intellect", "Main Attribute"],
       [
@@ -31,10 +34,25 @@ export const areas: Area[] = [
         "Efficacy",
       ],
     ],
+    tagSlotsJP: [
+      ["敏捷", "筋力", "意志", "知性", "メイン能力"],
+      [
+        "攻撃力",
+        "物理ダメージ",
+        "電磁ダメージ",
+        "寒冷ダメージ",
+        "自然ダメージ",
+        "会心率",
+        "必殺技効率",
+        "アーツダメージ",
+      ],
+      ["圧制", "追襲", "昂揚", "巧技", "付術", "治療", "切骨", "効率"],
+    ],
   },
   {
     id: "area2",
     name: "Severe Energy Alluvium: Power Plateau",
+    nameJP: "四号谷地:エネルギー高地",
     tagSlots: [
       ["Agility", "Strength", "Will", "Intellect", "Main Attribute"],
       [
@@ -58,10 +76,25 @@ export const areas: Area[] = [
         "Flow",
       ],
     ],
+    tagSlotsJP: [
+      ["敏捷", "筋力", "意志", "知性", "メイン能力"],
+      [
+        "攻撃力",
+        "HP",
+        "物理ダメージ",
+        "灼熱ダメージ",
+        "自然ダメージ",
+        "会心率",
+        "アーツ強度",
+        "回復効率",
+      ],
+      ["追襲", "破砕", "昂揚", "残虐", "付術", "治療", "切骨", "流回"],
+    ],
   },
   {
     id: "area3",
     name: "Severe Energy Alluvium: The Hub",
+    nameJP: "四号谷地:中枢エリア",
     tagSlots: [
       ["Agility", "Strength", "Will", "Intellect", "Main Attribute"],
       [
@@ -85,10 +118,25 @@ export const areas: Area[] = [
         "Efficacy",
       ],
     ],
+    tagSlotsJP: [
+      ["敏捷", "筋力", "意志", "知性", "メイン能力"],
+      [
+        "攻撃力",
+        "灼熱ダメージ",
+        "電磁ダメージ",
+        "寒冷ダメージ",
+        "自然ダメージ",
+        "アーツ強度",
+        "必殺技効率",
+        "アーツダメージ",
+      ],
+      ["強攻", "圧制", "追襲", "破砕", "巧技", "噴発", "流回", "効率"],
+    ],
   },
   {
     id: "area4",
     name: "Severe Energy Alluvium: Origin Lodespring",
+    nameJP: "四号谷地:鉱山エリア",
     tagSlots: [
       ["Agility", "Strength", "Will", "Intellect", "Main Attribute"],
       [
@@ -112,10 +160,25 @@ export const areas: Area[] = [
         "Efficacy",
       ],
     ],
+    tagSlotsJP: [
+      ["敏捷", "筋力", "意志", "知性", "メイン能力"],
+      [
+        "HP",
+        "物理ダメージ",
+        "灼熱ダメージ",
+        "寒冷ダメージ",
+        "自然ダメージ",
+        "会心率",
+        "アーツ強度",
+        "回復効率",
+      ],
+      ["強攻", "圧制", "巧技", "残虐", "付術", "噴発", "夜幕", "効率"],
+    ],
   },
   {
     id: "area5",
     name: "Severe Energy Alluvium: Wuling City",
+    nameJP: "武陵:武陵城",
     tagSlots: [
       ["Agility", "Strength", "Will", "Intellect", "Main Attribute"],
       [
@@ -138,6 +201,20 @@ export const areas: Area[] = [
         "Twilight",
         "Flow",
       ],
+    ],
+    tagSlotsJP: [
+      ["敏捷", "筋力", "意志", "知性", "メイン能力"],
+      [
+        "攻撃力",
+        "HP",
+        "電磁ダメージ",
+        "寒冷ダメージ",
+        "会心率",
+        "必殺技効率",
+        "アーツダメージ",
+        "回復効率",
+      ],
+      ["強攻", "破砕", "残虐", "治療", "切骨", "噴発", "夜幕", "流回"],
     ],
   },
 ];

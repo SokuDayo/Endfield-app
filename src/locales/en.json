@@ -1,0 +1,16 @@
+{
+  "weaponFarming": "Weapon Farming",
+  "essenceFarming": "Essence Farming",
+  "selectWeapon": "Select a weapon to see optimal farming areas.",
+  "selectTags": "Select tags to find matching weapons",
+  "any": "Any",
+  "rarity": "Rarity",
+  "type": "Type",
+  "close": "Close",
+  "none": "None",
+  "bestFarmingArea": "Best Farming Area",
+  "lockSecondary": "Lock Secondary",
+  "mainTag": "Main Tag",
+  "perfect": "Perfect",
+  "all": "All"
+}
