@@ -16,7 +16,7 @@ const TabLayout = () => {
       }}
     >
       <Tabs.Screen
-        name="farming"
+        name="index"
         options={{
           title: "Farming",
           tabBarIcon: ({ color }) => (
