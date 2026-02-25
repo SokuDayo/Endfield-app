@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "endfield-app",
+    "name": "Weapon and Essence Checker",
     "slug": "endfield-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-foreground.png",
     "scheme": "endfieldapp",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
